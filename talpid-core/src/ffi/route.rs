@@ -14,6 +14,9 @@ error_chain!{
         InvalidInterfaceAlias{
             description("Supplied interface alias is invalid")
         }
+        GetIpv6Status {
+            description("Failed to read IPv6 status on the TAP network interface")
+        }
     }
 }
 
@@ -30,8 +33,7 @@ pub fn ensure_top_metric_for_interface(interface_alias: &str) -> Result<bool> {
     }
 }
 
-// Allowing dead code here as this type should only ever be constructed by an
-// FFI function.
+// Allowing dead code here as this type should only ever be constructed by an FFI function.
 #[allow(dead_code)]
 #[repr(u32)]
 enum MetricResult {
@@ -62,4 +64,42 @@ extern "system" {
         sink: Option<ffi::ErrorSink>,
         sink_context: *mut libc::c_void,
     ) -> MetricResult;
+}
+
+
+/// Checks if IPv6 is enabled for the TAP interface
+pub fn get_tap_interface_ipv6_status() -> Result<bool> {
+    unsafe { GetTapInterfaceIpv6Status(Some(ffi::error_sink), ptr::null_mut()).into() }
+}
+
+// Allowing dead code here as this type should only ever be constructed by an FFI function.
+#[allow(dead_code)]
+#[repr(u32)]
+enum TapIpv6Status {
+    Enabled = 0u32,
+    Disabled = 1u32,
+    Failure = 2u32,
+    UnexpectedValue,
+}
+
+impl From<TapIpv6Status> for Result<bool> {
+    fn from(status: TapIpv6Status) -> Self {
+        match status {
+            TapIpv6Status::Enabled => Ok(true),
+            TapIpv6Status::Disabled => Ok(false),
+            TapIpv6Status::Failure => Err(Error::from(ErrorKind::GetIpv6Status)),
+            TapIpv6Status::UnexpectedValue => {
+                error!("Unexpected return code from GetTapInterfaceIpv6Status");
+                Err(Error::from(ErrorKind::GetIpv6Status))
+            }
+        }
+    }
+}
+
+extern "system" {
+    #[link_name(GetTapInterfaceIpv6Status)]
+    fn GetTapInterfaceIpv6Status(
+        sink: Option<ffi::ErrorSink>,
+        sink_context: *mut libc::c_void,
+    ) -> TapIpv6Status;
 }
