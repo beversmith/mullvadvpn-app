@@ -11,6 +11,7 @@ cache:
   - windows\windns\bin
   - windows\winfw\bin
   - windows\winroute\bin
+  - .mtime_cache
 
 environment:
   global:
@@ -52,10 +53,12 @@ install:
   - rustc --print cfg
   - cargo -V
   - git submodule update --init
+  - gem install mtime_cache
 
 # This is the "test phase", tweak it as you see fit
 test_script:
   - ps: . .\env.ps1
+  - mtime_cache windows/**/*.{cpp,h} --verbose --cache .mtime_cache/cache.json
   - bash -x build_windows_modules.sh --dev-build
   - cargo build
   - cargo test
