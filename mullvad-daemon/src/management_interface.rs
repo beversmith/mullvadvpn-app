@@ -253,7 +253,7 @@ pub struct EventBroadcaster {
 
 impl EventBroadcaster {
     /// Sends a new state update to all `new_state` subscribers of the management interface.
-    pub fn notify_new_state(&self, new_state: TunnelStateTransition) {
+    pub fn notify_new_state(&self, new_state: &TunnelStateTransition) {
         debug!("Broadcasting new state to listeners: {:?}", new_state);
         let subscriptions = self.subscriptions.read().unwrap();
         for sink in subscriptions.values() {
