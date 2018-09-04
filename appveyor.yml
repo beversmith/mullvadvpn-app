@@ -53,7 +53,6 @@ install:
   - rustc --print cfg
   - cargo -V
   - git submodule update --init
-  - gem install mtime_cache
 
 # This is the "test phase", tweak it as you see fit
 test_script:
