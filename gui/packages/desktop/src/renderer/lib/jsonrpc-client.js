@@ -389,19 +389,32 @@ export class SocketTransport implements Transport<{ path: string }> {
   onMessage: (message: Object) => void;
   onClose: (error: ?Error) => void;
   onOpen: (event: Event) => void;
+  socketErr: boolean;
+  shouldClose: boolean;
 
   constructor() {
     this.connection = null;
     this.onMessage = () => {};
     this.onClose = () => {};
     this.onOpen = () => {};
+    this.socketErr = false;
+    this.shouldClose = false;
   }
 
   _connect(options: { path: string }) {
     const connection = new net.Socket();
+
     connection.on('error', (err) => {
-      this.onClose(err);
-      this.close();
+      this._fail(err);
+    });
+
+    connection.on('close', (err) => {
+      // if there's no error but nobody expected the socket to be closed an
+      // error should still be propagated
+      if (!err && !this.shouldClose) {
+        err = new TransportError('socket closed unexpectedly');
+      }
+      this._fail(err);
     });
 
     connection.on('connect', (event) => {
@@ -416,14 +429,28 @@ export class SocketTransport implements Transport<{ path: string }> {
     jsonStream.on('data', this.onMessage);
 
     jsonStream.on('error', (err) => {
-      this.onClose(err);
-      this.close();
+      this._fail(err);
     });
 
+    jsonStream.on('close', (err) => {
+      this._fail(err);
+    });
+
+    this.socketErr = false;
+    this.shouldClose = false;
     connection.connect(options);
   }
 
+  _fail(err: ?Error) {
+    if (!this.socketErr) {
+      this.socketErr = true;
+      this.onClose(err);
+      this.close();
+    }
+  }
+
   close() {
+    this.shouldClose = true;
     try {
       if (this.connection) {
         this.connection.end();

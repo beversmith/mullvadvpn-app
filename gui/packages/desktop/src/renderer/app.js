@@ -493,6 +493,8 @@ export default class AppRenderer {
       if (!history.location.pathname.startsWith('/settings')) {
         actions.history.replace('/');
       }
+    } else {
+      log.info(`Disconnected from the daemon`);
     }
   }
 
@@ -604,16 +606,6 @@ export default class AppRenderer {
       default:
         log.error(`Unexpected ConnectionState: ${(connectionState: empty)}`);
         return;
-    }
-  }
-
-  async _authenticate(sharedSecret: string) {
-    try {
-      await this._daemonRpc.authenticate(sharedSecret);
-      log.info('Authenticated with backend');
-    } catch (e) {
-      log.error(`Failed to authenticate with backend: ${e.message}`);
-      throw e;
     }
   }
 }
