@@ -40,8 +40,6 @@ mac:
   extendInfo:
     LSUIElement: true
   extraResources:
-    - from: ../../../target/release/mullvad
-      to: .
     - from: ../../../target/release/problem-report
       to: .
     - from: ../../../target/release/mullvad-daemon
@@ -49,6 +47,9 @@ mac:
     - from: ../../../target/release/libtalpid_openvpn_plugin.dylib
       to: .
     - from: ../../../dist-assets/binaries/macos/openvpn
+      to: .
+  extraFiles:
+    - from: ../../../target/release/mullvad
       to: .
 
 pkg:
@@ -70,10 +71,11 @@ win:
       arch:
         - x64
   artifactName: MullvadVPN-${version}.${ext}
+  publisherName: Amagicom AB
+  signingHashAlgorithms:
+    - sha256
   signDlls: true
   extraResources:
-    - from: ../../../target/release/mullvad.exe
-      to: .
     - from: ../../../target/release/problem-report.exe
       to: .
     - from: ../../../target/release/mullvad-daemon.exe
@@ -88,9 +90,9 @@ win:
       to: .
     - from: ../../../dist-assets/binaries/windows/openvpn.exe
       to: .
-  publisherName: Amagicom AB
-  signingHashAlgorithms:
-    - sha256
+  extraFiles:
+    - from: ../../../target/release/mullvad.exe
+      to: .
 
 linux:
   target:
@@ -99,8 +101,6 @@ linux:
   artifactName: MullvadVPN-${version}_${arch}.${ext}
   category: Network
   extraResources:
-    - from: ../../../target/release/mullvad
-      to: .
     - from: ../../../target/release/problem-report
       to: .
     - from: ../../../target/release/mullvad-daemon
@@ -112,6 +112,9 @@ linux:
     - from: ../../../dist-assets/linux/mullvad-daemon.conf
       to: .
     - from: ../../../dist-assets/linux/mullvad-daemon.service
+      to: .
+  extraFiles:
+    - from: ../../../target/release/mullvad
       to: .
 
 deb:
