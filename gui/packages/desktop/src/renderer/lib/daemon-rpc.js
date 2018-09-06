@@ -468,6 +468,7 @@ export class DaemonRpc implements DaemonRpcProtocol {
       };
     } catch (error) {
       throw new ResponseParseError('Invalid response from get_tunnel_options', error);
+      console.log('RESPONSE: ', response);
     }
   }
 

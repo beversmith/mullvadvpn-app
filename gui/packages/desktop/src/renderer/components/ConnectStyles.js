@@ -29,20 +29,6 @@ export default {
     paddingLeft: 24,
     paddingRight: 24,
   }),
-  blocking_container: Styles.createViewStyle({
-    width: '100%',
-    position: 'absolute',
-  }),
-  blocking_icon: Styles.createViewStyle({
-    width: 10,
-    height: 10,
-    flex: 0,
-    display: 'flex',
-    borderRadius: 5,
-    marginTop: 4,
-    marginRight: 8,
-    backgroundColor: colors.red,
-  }),
   status: Styles.createViewStyle({
     paddingTop: 0,
     paddingLeft: 24,
@@ -61,20 +47,44 @@ export default {
   switch_location_button: Styles.createViewStyle({
     marginBottom: 16,
   }),
-
-  blocking_message: Styles.createTextStyle({
-    display: 'flex',
+  blocking_container: Styles.createViewStyle({
+    width: '100%',
+    position: 'absolute',
+  }),
+  blocking_banner: Styles.createViewStyle({
     flexDirection: 'row',
-    fontFamily: 'Open Sans',
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 17,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(4px)',
     paddingTop: 8,
     paddingLeft: 20,
     paddingRight: 20,
     paddingBottom: 8,
+  }),
+  blocking_icon: Styles.createViewStyle({
+    width: 10,
+    height: 10,
+    flex: 0,
+    borderRadius: 5,
+    marginTop: 4,
+    marginRight: 8,
+    backgroundColor: colors.red,
+  }),
+  blocking_text: Styles.createViewStyle({
+    flex: 1,
+  }),
+  blocking_banner_title: Styles.createTextStyle({
+    fontFamily: 'Open Sans',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
     color: colors.white60,
-    backgroundColor: colors.blue,
+  }),
+  blocking_banner_message: Styles.createTextStyle({
+    fontFamily: 'Open Sans',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    color: colors.white40,
   }),
   server_label: Styles.createTextStyle({
     fontFamily: 'DINPro',

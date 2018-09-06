@@ -2,7 +2,7 @@
 
 import moment from 'moment';
 import * as React from 'react';
-import { Component, Clipboard, Text, View, Types } from 'reactxp';
+import { UserInterface, Component, Clipboard, Text, View, Types } from 'reactxp';
 import { Accordion } from '@mullvad/components';
 import { Layout, Container, Header } from './Layout';
 import { SettingsBarButton, Brand } from './HeaderBar';
@@ -29,12 +29,18 @@ type Props = {
 };
 
 type State = {
+  showBanner: boolean,
+  bannerTitle: string,
+  bannerMessage: string,
   showCopyIPMessage: boolean,
   mapOffset: [number, number],
 };
 
 export default class Connect extends Component<Props, State> {
   state = {
+    showBanner: false,
+    bannerTitle: '',
+    bannerMessage: '',
     showCopyIPMessage: false,
     mapOffset: [0, 0],
   };
@@ -42,20 +48,54 @@ export default class Connect extends Component<Props, State> {
   _copyTimer: ?TimeoutID;
   _windowStateObserver = new WindowStateObserver();
 
+  _containerRef = React.createRef();
+  _spinnerRef = React.createRef();
+
+  constructor(props: Props) {
+    super();
+
+    this.state = {
+      ...this.state,
+      ...this.subStateForBanner(props.connection),
+    };
+  }
+
   shouldComponentUpdate(nextProps: Props, nextState: State) {
     const { connection: prevConnection, ...otherPrevProps } = this.props;
     const { connection: nextConnection, ...otherNextProps } = nextProps;
 
     const prevState = this.state;
 
-    return (
-      // shallow compare the connection
-      !shallowCompare(prevConnection, nextConnection) ||
-      !shallowCompare(otherPrevProps, otherNextProps) ||
+    const shouldUpdate = (
+      prevConnection.status !== nextConnection.status ||
+      prevConnection.isOnline !== nextConnection.isOnline ||
+      prevConnection.ip !== nextConnection.ip ||
+      prevConnection.latitude !== nextConnection.latitude ||
+      prevConnection.longitude !== nextConnection.longitude ||
+      prevConnection.country !== nextConnection.country ||
+      prevConnection.city !== nextConnection.city ||
+      prevConnection.blockReason !== nextConnection.blockReason ||
+
+      otherPrevProps.accountExpiry !== otherNextProps.accountExpiry ||
+      otherPrevProps.selectedRelayName !== otherNextProps.selectedRelayName ||
+      otherPrevProps.onSettings !== otherNextProps.onSettings ||
+      otherPrevProps.onSelectLocation !== otherNextProps.onSelectLocation ||
+      otherPrevProps.onConnect !== otherNextProps.onConnect ||
+      otherPrevProps.onDisconnect !== otherNextProps.onDisconnect ||
+      otherPrevProps.onExternalLink !== otherNextProps.onExternalLink ||
+      otherPrevProps.updateAccountExpiry !== otherNextProps.updateAccountExpiry ||
+
       prevState.mapOffset[0] !== nextState.mapOffset[0] ||
       prevState.mapOffset[1] !== nextState.mapOffset[1] ||
-      prevState.showCopyIPMessage !== nextState.showCopyIPMessage
+      prevState.showCopyIPMessage !== nextState.showCopyIPMessage ||
+      prevState.showBanner !== nextState.showBanner ||
+      prevState.bannerTitle !== nextState.bannerTitle ||
+      prevState.bannerMessage !== nextState.bannerMessage
     );
+
+    console.log('shouldComponentUpdate: ', shouldUpdate ? 'YES' : 'NO', prevState, nextState);
+
+    return shouldUpdate;
   }
 
   componentDidMount() {
@@ -64,6 +104,8 @@ export default class Connect extends Component<Props, State> {
     this._windowStateObserver.onShow = () => {
       this.props.updateAccountExpiry();
     };
+
+    this._updateMapOffset();
   }
 
   componentWillUnmount() {
@@ -72,6 +114,14 @@ export default class Connect extends Component<Props, State> {
     }
 
     this._windowStateObserver.dispose();
+  }
+
+  componentDidUpdate(prevProps: Props, prevState: State) {
+    console.log('componentDidUpdate');
+
+    this.setState(this.subStateForBanner(this.props.connection));
+
+    this._updateMapOffset();
   }
 
   render() {
@@ -89,6 +139,29 @@ export default class Connect extends Component<Props, State> {
     );
   }
 
+  subStateForBanner(connectionState: ConnectionState) {
+    switch (connectionState.status) {
+      case 'connecting':
+        return {
+          showBanner: true,
+          bannerTitle: 'BLOCKING INTERNET',
+          bannerMessage: '',
+        };
+
+      case 'blocked':
+        return {
+          showBanner: true,
+          bannerTitle: 'BLOCKING INTERNET',
+          bannerMessage: connectionState.blockReason || '',
+        };
+
+      default:
+        return {
+          showBanner: false,
+        };
+    }
+  }
+
   renderError(error: Error) {
     let title = '';
     let message = '';
@@ -101,11 +174,6 @@ export default class Connect extends Component<Props, State> {
     if (error instanceof NoInternetError) {
       title = 'Offline';
       message = 'Your internet connection will be secured when you get back online';
-    }
-
-    if (error instanceof BlockedError) {
-      title = 'Blocked';
-      message = error.message;
     }
 
     return (
@@ -138,7 +206,7 @@ export default class Connect extends Component<Props, State> {
         center: [longitude, latitude],
         // do not show the marker when connecting
         showMarker: status !== 'connecting',
-        markerStyle: status === 'connected' ? 'secure' : 'unsecure',
+        markerStyle: status === 'connected' || status === 'blocked' ? 'secure' : 'unsecure',
         // zoom in when connected
         zoomLevel: status === 'connected' ? 'low' : 'medium',
         // a magic offset to align marker with spinner
@@ -157,20 +225,27 @@ export default class Connect extends Component<Props, State> {
     }
   }
 
-  _updateMapOffset = (spinnerNode: ?HTMLElement) => {
-    if (spinnerNode) {
+  _updateMapOffset = async () => {
+    const spinnerElement = this._spinnerRef.current;
+    const containerElement = this._containerRef.current;
+    if (spinnerElement) {
       // calculate the vertical offset from the center of the map
       // to shift the center of the map upwards to align the centers
       // of spinner and marker on the map
-      const y = spinnerNode.offsetTop + spinnerNode.clientHeight * 0.5;
-      this.setState({
-        mapOffset: [0, y],
-      });
+      try {
+        const layout = await UserInterface.measureLayoutRelativeToAncestor(spinnerElement, containerElement);
+        const y = layout.y + layout.height * 0.5;
+        this.setState({
+          mapOffset: [0, y],
+        });
+      } catch (error) {
+        // TODO: handle error?
+      }
     }
   };
 
   renderMap() {
-    let [isConnecting, isConnected, isDisconnected] = [false, false, false];
+    let [isConnecting, isConnected, isDisconnected, isBlocked] = [false, false, false, false];
     switch (this.props.connection.status) {
       case 'connecting':
         isConnecting = true;
@@ -181,6 +256,9 @@ export default class Connect extends Component<Props, State> {
       case 'disconnected':
         isDisconnected = true;
         break;
+      case 'blocked':
+        isBlocked = true;
+        break;
     }
 
     return (
@@ -188,8 +266,8 @@ export default class Connect extends Component<Props, State> {
         <View style={styles.map}>
           <Map style={{ width: '100%', height: '100%' }} {...this._getMapProps()} />
         </View>
-        <View style={styles.container}>
-          {this._renderIsBlockingInternetMessage()}
+        <View style={styles.container} ref={this._containerRef}>
+          {this._renderBlockingInternetBanner()}
 
           {/* show spinner when connecting */}
           {isConnecting ? (
@@ -199,7 +277,7 @@ export default class Connect extends Component<Props, State> {
                 height={60}
                 width={60}
                 alt=""
-                ref={this._updateMapOffset}
+                ref={this._spinnerRef}
               />
             </View>
           ) : null}
@@ -269,8 +347,8 @@ export default class Connect extends Component<Props, State> {
             </View>
           ) : null}
 
-          {/* footer when connecting */}
-          {isConnecting ? (
+          {/* footer when connecting or blocked */}
+          {isConnecting || isBlocked ? (
             <View style={styles.footer}>
               <AppButton.TransparentButton
                 style={styles.switch_location_button}
@@ -309,15 +387,22 @@ export default class Connect extends Component<Props, State> {
     );
   }
 
-  _renderIsBlockingInternetMessage() {
+  _renderBlockingInternetBanner() {
     return (
       <Accordion
         style={styles.blocking_container}
-        height={this.props.connection.status === 'connecting' ? 'auto' : 0}>
-        <Text style={styles.blocking_message}>
-          <Text style={styles.blocking_icon}>&nbsp;</Text>
-          <Text>BLOCKING INTERNET</Text>
-        </Text>
+        height={this.state.showBanner ? 'auto' : 0}>
+        <View style={styles.blocking_banner}>
+          <View style={styles.blocking_icon} />
+          <View style={styles.blocking_text}>
+            <Text style={styles.blocking_banner_title}>{this.state.bannerTitle}</Text>
+            {
+              this.state.bannerMessage.length > 0 && (
+                  <Text style={styles.blocking_banner_message}>{this.state.bannerMessage}</Text>
+                )
+            }
+          </View>
+        </View>
       </Accordion>
     );
   }
@@ -359,9 +444,10 @@ export default class Connect extends Component<Props, State> {
 
   networkSecurityStyle(): Types.Style {
     const classes = [styles.status_security];
-    if (this.props.connection.status === 'connected') {
+    const {status} = this.props.connection;
+    if (status === 'connected' || status === 'blocked') {
       classes.push(styles.status_security__secure);
-    } else if (this.props.connection.status === 'disconnected') {
+    } else if (status === 'disconnected') {
       classes.push(styles.status_security__unsecured);
     }
     return classes;
@@ -371,6 +457,8 @@ export default class Connect extends Component<Props, State> {
     switch (this.props.connection.status) {
       case 'connected':
         return 'SECURE CONNECTION';
+      case 'blocked':
+        return 'BLOCKED CONNECTION';
       case 'connecting':
         return 'CREATING SECURE CONNECTION';
       default:
@@ -398,16 +486,6 @@ export default class Connect extends Component<Props, State> {
       return new NoCreditError();
     }
 
-    // Tunnel is blocked due to an error?
-    if (this.props.connection.status === 'blocked') {
-      return new BlockedError(this.props.connection.blockReason);
-    }
-
     return null;
   }
-}
-
-function shallowCompare(lhs: Object, rhs: Object) {
-  const keys = Object.keys(lhs);
-  return keys.length === Object.keys(rhs).length && keys.every((key) => lhs[key] === rhs[key]);
 }
